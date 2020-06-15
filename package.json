@@ -1,0 +1,12 @@
+{
+  "name": "lamden_wallet_controller",
+  "version": "0.1.0",
+  "description": "A helper class for interacting with the Lamden Wallet Events",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["blockchain", "lamden", "wallet"],
+  "author": "Jeff Scott",
+  "license": "ISC"
+}
