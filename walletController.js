@@ -56,7 +56,6 @@ class WalletController {
                 document.removeEventListener("lamdenWalletInfo", handleConnecionResponse);
             }
             document.addEventListener('lamdenWalletInfo', handleConnecionResponse, { once: true })
-            console.log(this.connectionRequest.info())
             document.dispatchEvent(new CustomEvent('lamdenWalletConnect', {detail: this.connectionRequest.info()}));
         })
     }
@@ -130,7 +129,6 @@ class MyEventEmitter {
     }
   
     on(name, listener) {
-        //console.log({name, listener})
       if (!this._events[name]) {
         this._events[name] = [];
       }
