@@ -1,12 +1,11 @@
 class WalletController {
     constructor() {
-        this.walletConnection = new WalletConnectionRequest()
+        this.connectionRequest = undefined
         this.events = new MyEventEmitter()
         this.installed = null;
         this.locked = null;
         this.approvals = {}
         document.addEventListener('lamdenWalletInfo', (e) => {
-            this.events.emit('newInfo', e.detail)
             let data = e.detail;
             if (!data.errors){
                 if (typeof data.installed !== 'undefined') this.installed = data.installed
@@ -14,6 +13,11 @@ class WalletController {
                 if (data.wallets.length > 0) this.walletAddress = data.wallets[0]
                 if (typeof data.approvals !== 'undefined') this.approvals = data.approvals
             }
+            this.events.emit('newInfo', e.detail)
+        })
+        document.addEventListener('lamdenWalletTxStatus', (e) => {
+            this.events.emit('txStatus', e.detail)
+            let data = e.detail;
         })
     }
     getInfo(){
@@ -28,13 +32,17 @@ class WalletController {
             }
             document.addEventListener('lamdenWalletInfo', handleWalletInstalled, { once: true })
             document.dispatchEvent(new CustomEvent('lamdenWalletGetInfo'));
+            setTimeout(() => {
+                if (!this.installed) resolve(false);
+            }, 1000)
         })
     }
-    createConnection(info){
-        this.walletConnection = new WalletConnectionRequest(info)
-        return this.walletConnection
+    createConnection(request){
+        this.connectionRequest = new WalletConnectionRequest(request)
+        return this.connectionRequest
     }
-    sendConnection(){
+    sendConnection(request){
+        if (request && !this.connectionRequest) this.createConnection(request)
         return new Promise((resolve, reject) => {
             const handleConnecionResponse = (e) => {
                 if (e.detail.errors) {
@@ -48,8 +56,21 @@ class WalletController {
                 document.removeEventListener("lamdenWalletInfo", handleConnecionResponse);
             }
             document.addEventListener('lamdenWalletInfo', handleConnecionResponse, { once: true })
-            console.log(this.walletConnection.info())
-            document.dispatchEvent(new CustomEvent('lamdenWalletConnect', {detail: this.walletConnection.info()}));
+            console.log(this.connectionRequest.info())
+            document.dispatchEvent(new CustomEvent('lamdenWalletConnect', {detail: this.connectionRequest.info()}));
+        })
+    }
+    sendTransaction(tx){
+        return new Promise((resolve, reject) => {
+            const handleConnecionResponse = (e) => {
+                if (e.detail.errors) {
+                    reject(e.detail.errors)
+                }
+                else {
+                    resolve(e.detail);
+                }
+            }
+            document.dispatchEvent(new CustomEvent('lamdenWalletSendTx', {detail: JSON.stringify(tx)}));
         })
     }
   }
@@ -62,6 +83,7 @@ class WalletConnectionRequest {
                 if (!isUndefined(this[p])) this[p] = info[p]
             })
         }
+        this.request = info
         this.appName = "";
         this.description = "";
         this.contractName = "";
@@ -80,10 +102,15 @@ class WalletConnectionRequest {
             populate(info)
         }catch (e){
             console.log(e)
+            throw new Error(e.message)
         }
     }
     info(){
-        let info = {appName: this.appName, description: this.description, contractName: this.contractName, networkType: this.networkType, logo: this.logo}
+        let info = {
+            appName: this.appName, 
+            description: this.description, 
+            contractName: this.contractName, 
+            networkType: this.networkType, logo: this.logo}
         if (this.background.length > 0) info.background = this.background
         if (this.charms.length > 0) info.charms = this.charms
         if (this.preApproval.stampsToPreApprove > 0) info.preApproval = this.preApproval
@@ -113,7 +140,7 @@ class MyEventEmitter {
   
     removeListener(name, listenerToRemove) {
       if (!this._events[name]) {
-        throw new Error(`Can't remove a listener. Event "${name}" doesn't exits.`);
+        return
       }
   
       const filterListeners = (listener) => listener !== listenerToRemove;
@@ -122,9 +149,8 @@ class MyEventEmitter {
     }
   
     emit(name, data) {
-        //console.log({name, data})
       if (!this._events[name]) {
-        throw new Error(`Can't emit an event. Event "${name}" doesn't exits.`);
+        return
       }
   
       const fireCallbacks = (callback) => {
