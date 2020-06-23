@@ -17,7 +17,6 @@ class WalletController {
         })
         document.addEventListener('lamdenWalletTxStatus', (e) => {
             this.events.emit('txStatus', e.detail)
-            let data = e.detail;
         })
     }
     getInfo(){
@@ -31,7 +30,7 @@ class WalletController {
                 document.removeEventListener("lamdenWalletInfo", handleWalletInstalled);
             }
             document.addEventListener('lamdenWalletInfo', handleWalletInstalled, { once: true })
-            document.dispatchEvent(new CustomEvent('lamdenWalletGetInfo'));
+            this.getInfo();
             setTimeout(() => {
                 if (!this.installed) resolve(false);
             }, 1000)
@@ -45,14 +44,9 @@ class WalletController {
         if (request && !this.connectionRequest) this.createConnection(request)
         return new Promise((resolve, reject) => {
             const handleConnecionResponse = (e) => {
-                if (e.detail.errors) {
-                    reject(e.detail.errors)
-                }
-                else {
-                    this.info = e.detail;
-                    this.events.emit('newInfo', e.detail)
-                    resolve(e.detail);
-                }
+                this.info = e.detail;
+                this.events.emit('newInfo', e.detail)
+                resolve(e.detail);
                 document.removeEventListener("lamdenWalletInfo", handleConnecionResponse);
             }
             document.addEventListener('lamdenWalletInfo', handleConnecionResponse, { once: true })
@@ -60,17 +54,7 @@ class WalletController {
         })
     }
     sendTransaction(tx){
-        return new Promise((resolve, reject) => {
-            const handleConnecionResponse = (e) => {
-                if (e.detail.errors) {
-                    reject(e.detail.errors)
-                }
-                else {
-                    resolve(e.detail);
-                }
-            }
-            document.dispatchEvent(new CustomEvent('lamdenWalletSendTx', {detail: JSON.stringify(tx)}));
-        })
+        document.dispatchEvent(new CustomEvent('lamdenWalletSendTx', {detail: JSON.stringify(tx)}));
     }
   }
 
