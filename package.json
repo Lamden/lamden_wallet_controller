@@ -1,6 +1,6 @@
 {
   "name": "lamden_wallet_controller",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "description": "A helper class for interacting with Lamden Wallet Events",
   "main": "walletController.js",
   "scripts": {
@@ -13,5 +13,16 @@
     "wallet"
   ],
   "author": "Jeff Scott",
-  "license": "ISC"
+  "license": "ISC",
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Lamden/lamden_wallet_controller.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Lamden/lamden_wallet_controller/issues"
+  },
+  "homepage": "https://github.com/Lamden/lamden_wallet_controller#readme"
 }

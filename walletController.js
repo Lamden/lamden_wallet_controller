@@ -7,23 +7,48 @@ class WalletController {
      * Create a wallet controller.
      * Requires access to broswer document object when instantiated. 
      */
-    constructor() {
-        this.connectionRequest = undefined
-        this.events = new MyEventEmitter()
+    constructor(connectionRequest) {
+        this.connectionRequest = new WalletConnectionRequest(connectionRequest);
+        this.events = new MyEventEmitter();
         this.installed = null;
         this.locked = null;
-        this.approvals = {}
+        this.approvals = {};
+        this.approved = false;
+        this.autoTransactions = false;
+        this.walletAddress = ""
+        this.callbacks = {};
         document.addEventListener('lamdenWalletInfo', (e) => {
+            this.installed = true;
             let data = e.detail;
-            if (!data.errors){
-                if (typeof data.installed !== 'undefined') this.installed = data.installed
-                if (typeof data.locked !== 'undefined') this.locked = data.locked
-                if (data.wallets.length > 0) this.walletAddress = data.wallets[0]
-                if (typeof data.approvals !== 'undefined') this.approvals = data.approvals
+
+            if (data){
+                if (!data.errors){
+                    if (typeof data.locked !== 'undefined') this.locked = data.locked
+
+                    if (data.wallets.length > 0) this.walletAddress = data.wallets[0]
+                    if (typeof data.approvals !== 'undefined') {
+                        this.approvals = data.approvals
+                        let approval = this.approvals[this.connectionRequest.networkType]
+                        if (approval){
+                            if (approval.contractName === this.connectionRequest.contractName){
+                                this.approved = true;
+                                this.autoTransactions = approval.trustedApp
+                            }
+                        }
+                    }
+                }else{
+                    data.errors.forEach(err => {
+                        if (err === "Wallet is Locked") this.locked = true
+                    })
+                }
+                this.events.emit('newInfo', e.detail)
             }
-            this.events.emit('newInfo', e.detail)
         })
         document.addEventListener('lamdenWalletTxStatus', (e) => {
+            let txResult = e.detail.data
+            if (Object.keys(txResult.txBlockResult).length > 0){
+                if (this.callbacks[txResult.uid]) this.callbacks[txResult.uid](txResult)
+            }
             this.events.emit('txStatus', e.detail)
         })
     }
@@ -41,10 +66,12 @@ class WalletController {
      */
     walletIsInstalled(){
         return new Promise((resolve, reject) => {
-            const handleWalletInstalled = () => {
+            const handleWalletInstalled = (e) => {
                 this.installed = true;
-                resolve(true);
+                this.events.emit('installed', true)
                 document.removeEventListener("lamdenWalletInfo", handleWalletInstalled);
+                this.sendConnection();
+                resolve(true);
             }
             document.addEventListener('lamdenWalletInfo', handleWalletInstalled, { once: true })
             this.getInfo();
@@ -62,21 +89,17 @@ class WalletController {
      * @param {string} request.networkType - Which Lamden network the approval is for (Mainnet or testnet)
      * @param {string} request.background - A reletive path to an image to override the default lamden wallet account background
      * @param {string} request.logo - A reletive path to an image to use as a logo in the Lamden Wallet
-     * @param {string} request.reapprove - Ask the user to re-approve your app
      * @param {string} request.charms.name - Charm name
      * @param {string} request.charms.variableName - Smart contract variable to pull data from
      * @param {string} request.charms.key - Key assoicated to the value you want to lookup
      * @param {string} request.charms.formatAs - What format the data is
      * @param {string} request.charms.iconPath - An icon to display along with your charm
-     * @param {number} request.preApproval.stampsToPreApprove - Pre-approve transactions on this account
-     * @param {string} request.preApproval.message - Tell the user why you want the pre-approval
      * @fires newInfo
      */
-    sendConnection(request){
-        this.connectionRequest = new WalletConnectionRequest(request)
+    sendConnection(connectionRequest = undefined){
+        if (connectionRequest) this.connectionRequest = new WalletConnectionRequest(request)
         return new Promise((resolve) => {
             const handleConnecionResponse = (e) => {
-                console.log(e)
                 this.events.emit('newInfo', e.detail)
                 resolve(e.detail);
                 document.removeEventListener("lamdenWalletInfo", handleConnecionResponse);
@@ -94,7 +117,9 @@ class WalletController {
      * @param {Object} request.kwargs - A keyword object to supply arguments to your method
      * @fires txStatus
      */
-    sendTransaction(tx){
+    sendTransaction(tx, callback){
+        tx.uid = new Date().toISOString()
+        this.callbacks[tx.uid] = callback
         document.dispatchEvent(new CustomEvent('lamdenWalletSendTx', {detail: JSON.stringify(tx)}));
     }
   }
@@ -106,7 +131,7 @@ class WalletConnectionRequest {
      * Validate a request object
      * @param {Object} request  - request object
      */
-    constructor(request = {}) {
+    constructor(request = {}, reapprove = false, newKeypair = false) {
         const isUndefined = (value) => typeof value === "undefined";
         const populate = (request) => {
             Object.keys(request).forEach(p => {
@@ -121,13 +146,7 @@ class WalletConnectionRequest {
         this.logo = "";
         this.background = "";
         this.approvalHash = "";
-        this.reapprove = false;
-        this.newKeypair = false;
         this.charms = []
-        this.preApproval = {
-            stampsToPreApprove: 0, 
-            message: ""
-        }
         try{
             populate(request)
         }catch (e){
@@ -147,13 +166,6 @@ class WalletConnectionRequest {
             networkType: this.networkType, logo: this.logo}
         if (this.background.length > 0) info.background = this.background
         if (this.charms.length > 0) info.charms = this.charms
-        if (this.preApproval.stampsToPreApprove > 0) info.preApproval = this.preApproval
-        if (this.reapprove == true) {
-            info.reapprove = true
-            if (this.newKeypair == true) {
-                info.newKeypair = true
-            }
-        }
         return JSON.stringify(info)
     }
 }
@@ -180,6 +192,7 @@ class MyEventEmitter {
   
       this._events[name] = this._events[name].filter(filterListeners);
     }
+
   
     emit(name, data) {
       if (!this._events[name]) {
