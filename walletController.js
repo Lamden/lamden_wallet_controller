@@ -1,14 +1,34 @@
 'use strict'
-/** Lamden Wallet Controller 
- *  
- */
+
 class WalletController {
     /**
-     * Create a wallet controller.
-     * Requires access to broswer document object when instantiated. 
+     * Lamden Wallet Controller Class
+     *
+     * This Class interfaces with the Lamden Wallet's content script. It provids helper methods for creating a connection,
+     * getting wallet info, sending transactions and retreiving tx information.
+     *
+     * The connection information for your DAPP can be supplied now or later by calling "sendConnection" manually.
+     *
+     * IMPORTANT: The window object needs to be available when creating this instance as it will attempt to create listeners.
+     *
+     *
+     * @param {Object|undefined} connectionRequest  A connection request object
+     * @param {string} connectionRequest.appName The name of your dApp
+     * @param {string} connectionRequest.version Connection version. Older version will be over-written in the uers's wallet.
+     * @param {string} connectionRequest.contractName The smart contract your DAPP will transact to
+     * @param {string} connectionRequest.networkType Which Lamden network the approval is for (mainnet or testnet) are the only options
+     * @param {string} connectionRequest.logo The reletive path of an image on your webserver to use as a logo for your Lamden Wallet Linked Account
+     * @param {string=} connectionRequest.background The reletive path of an image on your webserver to use as a background for your Lamden Wallet Linked Account
+     * @param {string=} connectionRequest.charms.name Charm name
+     * @param {string=} connectionRequest.charms.variableName Smart contract variable to pull data from
+     * @param {string=} connectionRequest.charms.key Key assoicated to the value you want to lookup
+     * @param {string=} connectionRequest.charms.formatAs What format the data is
+     * @param {string=} connectionRequest.charms.iconPath An icon to display along with your charm
+     * @fires newInfo
+     * @return {WalletController}
      */
-    constructor(connectionRequest) {
-        this.connectionRequest = new WalletConnectionRequest(connectionRequest);
+    constructor(connectionRequest = undefined) {
+        this.connectionRequest = connectionRequest ? new WalletConnectionRequest(connectionRequest) : null;
         this.events = new MyEventEmitter();
         this.installed = null;
         this.locked = null;
@@ -53,16 +73,20 @@ class WalletController {
         })
     }
     /**
-     * Get the current wallet information
+     * Creates a "lamdenWalletGetInfo" CustomEvent to ask the Lamden Wallet for the current information.
+     * This will fire the "newInfo" events.on event
+     *
      * @fires newInfo
      */
     getInfo(){
         document.dispatchEvent(new CustomEvent('lamdenWalletGetInfo'));
     }
     /**
-     * Get the current wallet information
+     * Check if the Lamden Wallet extention is installed in the user's broswer.
+     *
+     * This will fire the "newInfo" events.on event
      * @fires newInfo
-     * @return {boolean} The wallet is installed
+     * @return {Promise} Wallet is Installed.
      */
     walletIsInstalled(){
         return new Promise((resolve, reject) => {
@@ -70,7 +94,7 @@ class WalletController {
                 this.installed = true;
                 this.events.emit('installed', true)
                 document.removeEventListener("lamdenWalletInfo", handleWalletInstalled);
-                this.sendConnection();
+                if (this.connectionRequest !== null) this.sendConnection();
                 resolve(true);
             }
             document.addEventListener('lamdenWalletInfo', handleWalletInstalled, { once: true })
@@ -81,23 +105,28 @@ class WalletController {
         })
     }
     /**
-     * Send a connection to the Lamden Wallet for approval. Will call createConnection if it wasn't done previously.
-     * @param {Object} request  - A connection request object
-     * @param {string} request.appName - The name of your dApp
-     * @param {string} request.description - What is yoru dApp and why should the user approve the connection
-     * @param {string} request.contractName - The smart contract your dApp will transact through
-     * @param {string} request.networkType - Which Lamden network the approval is for (Mainnet or testnet)
-     * @param {string} request.background - A reletive path to an image to override the default lamden wallet account background
-     * @param {string} request.logo - A reletive path to an image to use as a logo in the Lamden Wallet
-     * @param {string} request.charms.name - Charm name
-     * @param {string} request.charms.variableName - Smart contract variable to pull data from
-     * @param {string} request.charms.key - Key assoicated to the value you want to lookup
-     * @param {string} request.charms.formatAs - What format the data is
-     * @param {string} request.charms.iconPath - An icon to display along with your charm
+     * Send a connection to the Lamden Wallet for approval.
+     * If the connectionRequest object wasn't supplied to the construtor then it must be supplied here.
+     *
+     * This will fire the "newInfo" events.on event
+     * @param {Object|undefined} connectionRequest  A connection request object
+     * @param {string} connectionRequest.appName The name of your dApp
+     * @param {string} connectionRequest.version Connection version. Older version will be over-written in the uers's wallet.
+     * @param {string} connectionRequest.contractName The smart contract your dApp will transact through
+     * @param {string} connectionRequest.networkType Which Lamden network the approval is for (Mainnet or testnet)
+     * @param {string=} connectionRequest.background A reletive path to an image to override the default lamden wallet account background
+     * @param {string} connectionRequest.logo A reletive path to an image to use as a logo in the Lamden Wallet
+     * @param {string=} connectionRequest.charms.name Charm name
+     * @param {string=} connectionRequest.charms.variableName Smart contract variable to pull data from
+     * @param {string=} connectionRequest.charms.key Key assoicated to the value you want to lookup
+     * @param {string=} connectionRequest.charms.formatAs What format the data is
+     * @param {string=} connectionRequest.charms.iconPath An icon to display along with your charm
      * @fires newInfo
+     * @return {Promise} The User's Lamden Wallet Account details or errors from the wallet
      */
     sendConnection(connectionRequest = undefined){
         if (connectionRequest) this.connectionRequest = new WalletConnectionRequest(request)
+        if (this.connectionRequest === null) throw new Error('No connetionRequest information.')
         return new Promise((resolve) => {
             const handleConnecionResponse = (e) => {
                 this.events.emit('newInfo', e.detail)
@@ -109,66 +138,71 @@ class WalletController {
         })
     }
     /**
-     * Send a connection to the Lamden Wallet for approval. Will call createConnection if it wasn't done previously.
-     * @param {Object} tx  - A connection request object
-     * @param {string} request.networkType - Which Lamden network the tx is for (Mainnet or testnet)
-     * @param {string} request.stampLimit - The max Stamps this tx is allowed to use. Cannot be more but can be less.
-     * @param {string} request.methodName - The method on your approved smart contract to call
-     * @param {Object} request.kwargs - A keyword object to supply arguments to your method
+     * Creates a "lamdenWalletSendTx" event to send a transaction request to the Lamden Wallet.
+     * If a callback is specified here then it will be called with the transaction result.
+     *
+     * This will fire the "txStatus" events.on event
+     * @param {Object} tx  A connection request object
+     * @param {string} tx.networkType Which Lamden network the tx is for (Mainnet or testnet)
+     * @param {string} tx.stampLimit The max Stamps this tx is allowed to use. Cannot be more but can be less.
+     * @param {string} tx.methodName The method on your approved smart contract to call
+     * @param {Object} tx.kwargs A keyword object to supply arguments to your method
+     * @param {Function=} callback A function that will called and passed the tx results.
      * @fires txStatus
      */
-    sendTransaction(tx, callback){
+    sendTransaction(tx, callback = undefined){
         tx.uid = new Date().toISOString()
-        this.callbacks[tx.uid] = callback
+        if (typeof callback === 'function') this.callbacks[tx.uid] = callback
         document.dispatchEvent(new CustomEvent('lamdenWalletSendTx', {detail: JSON.stringify(tx)}));
     }
   }
-/** Wallet Connection Request
- *  
- */
+
 class WalletConnectionRequest {
     /**
-     * Validate a request object
-     * @param {Object} request  - request object
+     * Wallet Connection Request Class
+     *
+     * Validates and stores the information from a connectionRequest object.  See WalletController constructor for connection request params.
+     * @param {Object} connectionRequest  - request object
+     * @return {WalletConnectionRequest}
      */
-    constructor(request = {}, reapprove = false, newKeypair = false) {
+    constructor(connectionRequest = {}) {
         const isUndefined = (value) => typeof value === "undefined";
         const populate = (request) => {
             Object.keys(request).forEach(p => {
                 if (!isUndefined(this[p])) this[p] = request[p]
             })
         }
-        this.request = request
+        this.request = connectionRequest
         this.appName = "";
-        this.description = "";
+        this.version = "";
         this.contractName = "";
         this.networkType = "";
         this.logo = "";
         this.background = "";
-        this.approvalHash = "";
         this.charms = []
         try{
-            populate(request)
+            populate(connectionRequest)
         }catch (e){
             console.log(e)
             throw new Error(e.message)
         }
     }
     /**
-     * Get the the approval request information
+     * Get a JSON string of the approval request information
      * @return {string} - JSON string of all request information
      */
     getInfo(){
         let info = {
-            appName: this.appName, 
-            description: this.description, 
-            contractName: this.contractName, 
+            appName: this.appName,
+            version: this.version,
+            contractName: this.contractName,
             networkType: this.networkType, logo: this.logo}
         if (this.background.length > 0) info.background = this.background
         if (this.charms.length > 0) info.charms = this.charms
         return JSON.stringify(info)
     }
 }
+
 
 class MyEventEmitter {
     constructor() {
