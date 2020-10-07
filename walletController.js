@@ -66,8 +66,15 @@ class WalletController {
         })
         document.addEventListener('lamdenWalletTxStatus', (e) => {
             let txResult = e.detail.data
-            if (Object.keys(txResult.txBlockResult).length > 0){
-                if (this.callbacks[txResult.uid]) this.callbacks[txResult.uid](txResult)
+            if (txResult.errors){
+                if (txResult.errors.length > 0) {
+                    let data = JSON.parse(txResult.data)
+                    if (this.callbacks[data.uid]) this.callbacks[data.uid](e.detail)
+                }
+            }else{
+                if (Object.keys(txResult.txBlockResult).length > 0){
+                    if (this.callbacks[txResult.uid]) this.callbacks[txResult.uid](e.detail)
+                }
             }
             this.events.emit('txStatus', e.detail)
         })
