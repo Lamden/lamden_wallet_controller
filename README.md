@@ -1,4 +1,4 @@
-# [lamden_wallet_controller](https://github.com/Lamden/lamden_wallet_controller#readme) *0.5.0*
+# [lamden_wallet_controller](https://github.com/Lamden/lamden_wallet_controller#readme) *0.6.1*
 
 > An ES6 helper Class for handling the Lamden Wallet&#x27;s broswer event interface.
 
