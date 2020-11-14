@@ -132,7 +132,7 @@ class WalletController {
      * @return {Promise} The User's Lamden Wallet Account details or errors from the wallet
      */
     sendConnection(connectionRequest = undefined){
-        if (connectionRequest) this.connectionRequest = new WalletConnectionRequest(request)
+        if (connectionRequest) this.connectionRequest = new WalletConnectionRequest(connectionRequest)
         if (this.connectionRequest === null) throw new Error('No connetionRequest information.')
         return new Promise((resolve) => {
             const handleConnecionResponse = (e) => {
