@@ -48,7 +48,7 @@ class WalletController {
                     if (data.wallets.length > 0) this.walletAddress = data.wallets[0]
                     if (typeof data.approvals !== 'undefined') {
                         this.approvals = data.approvals
-                        let approval = this.approvals[this.connectionRequest.networkType]
+                        let approval = this.approvals[this.connectionRequest?.networkType]
                         if (approval){
                             if (approval.contractName === this.connectionRequest.contractName){
                                 this.approved = true;
@@ -68,8 +68,12 @@ class WalletController {
             let txResult = e.detail.data
             if (txResult.errors){
                 if (txResult.errors.length > 0) {
-                    let data = JSON.parse(txResult.data)
-                    if (this.callbacks[data.uid]) this.callbacks[data.uid](e.detail)
+                    let uid = txResult?.txData?.uid
+                    if (txResult.status === "Transaction Cancelled"){
+                        let txData = JSON.parse(txResult.rejected)
+                        uid = txData.uid
+                    }
+                    if (this.callbacks[uid]) this.callbacks[uid](e.detail)
                 }
             }else{
                 if (Object.keys(txResult.txBlockResult).length > 0){
@@ -110,6 +114,17 @@ class WalletController {
                 if (!this.installed) resolve(false);
             }, 1000)
         })
+    }
+    /**
+     * Store connectionRequest information but don't sent
+     * If the connectionRequest object wasn't supplied to the construtor then it can be supplied or updated here
+     *
+     * @param {Object} connectionRequest  A connection request object
+     * @return {undefined}
+     */
+    storeConnectionRequest(connectionRequest){
+        if (!connectionRequest) throw new Error("no connection request provided")
+        this.connectionRequest = new WalletConnectionRequest(connectionRequest)
     }
     /**
      * Send a connection to the Lamden Wallet for approval.

@@ -1,4 +1,4 @@
-# [lamden_wallet_controller](https://github.com/Lamden/lamden_wallet_controller#readme) *0.6.1*
+# [lamden_wallet_controller](https://github.com/Lamden/lamden_wallet_controller#readme) *0.6.3*
 
 > An ES6 helper Class for handling the Lamden Wallet&#x27;s broswer event interface.
 
@@ -79,6 +79,30 @@ This will fire the "newInfo" events.on event
 
 
 - `Promise`  Wallet is Installed.
+
+
+
+#### storeConnectionRequest(connectionRequest) 
+
+Store connectionRequest information but don't sent
+If the connectionRequest object wasn't supplied to the construtor then it can be supplied or updated here
+
+
+
+
+##### Parameters
+
+| Name | Type | Description |  |
+| ---- | ---- | ----------- | -------- |
+| connectionRequest | `Object`  | A connection request object | &nbsp; |
+
+
+
+
+##### Returns
+
+
+-  
 
 
 
