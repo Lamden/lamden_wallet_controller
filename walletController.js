@@ -1,5 +1,9 @@
 'use strict'
 
+
+const LAMDEN_MOBILE_WALLET_URL = "https://lamdenwallet.com";
+
+
 class WalletController {
     /**
      * Lamden Wallet Controller Class
@@ -24,10 +28,11 @@ class WalletController {
      * @param {string=} connectionRequest.charms.key Key assoicated to the value you want to lookup
      * @param {string=} connectionRequest.charms.formatAs What format the data is
      * @param {string=} connectionRequest.charms.iconPath An icon to display along with your charm
+     * @param {boolean=} chromeExtension A flag of whether to use the Chrome extension or mobile-friendly browser wallet
      * @fires newInfo
      * @return {WalletController}
      */
-    constructor(connectionRequest = undefined) {
+    constructor(connectionRequest = undefined, chromeExtension = true) {
         this.connectionRequest = connectionRequest ? new WalletConnectionRequest(connectionRequest) : null;
         this.events = new MyEventEmitter();
         this.installed = null;
@@ -37,6 +42,8 @@ class WalletController {
         this.autoTransactions = false;
         this.walletAddress = ""
         this.callbacks = {};
+        this.popup = null;
+        this.chromeExtension = chromeExtension;
         document.addEventListener('lamdenWalletInfo', (e) => {
             this.installed = true;
             let data = e.detail;
@@ -149,15 +156,21 @@ class WalletController {
     sendConnection(connectionRequest = undefined){
         if (connectionRequest) this.connectionRequest = new WalletConnectionRequest(connectionRequest)
         if (this.connectionRequest === null) throw new Error('No connetionRequest information.')
-        return new Promise((resolve) => {
-            const handleConnecionResponse = (e) => {
-                this.events.emit('newInfo', e.detail)
-                resolve(e.detail);
-                document.removeEventListener("lamdenWalletInfo", handleConnecionResponse);
-            }
-            document.addEventListener('lamdenWalletInfo', handleConnecionResponse, { once: true })
-            document.dispatchEvent(new CustomEvent('lamdenWalletConnect', {detail: this.connectionRequest.getInfo()}));
-        })
+        if (this.chromeExtension) {
+            return new Promise((resolve) => {
+                const handleConnecionResponse = (e) => {
+                    this.events.emit('newInfo', e.detail)
+                    resolve(e.detail);
+                    document.removeEventListener("lamdenWalletInfo", handleConnecionResponse);
+                }
+                document.addEventListener('lamdenWalletInfo', handleConnecionResponse, { once: true })
+                document.dispatchEvent(new CustomEvent('lamdenWalletConnect', {detail: this.connectionRequest.getInfo()}));
+            })
+        } else {
+            return new Promise((resolve) => {
+                this.loginMobile()
+            })
+        }
     }
     /**
      * Creates a "lamdenWalletSendTx" event to send a transaction request to the Lamden Wallet.
@@ -175,9 +188,92 @@ class WalletController {
     sendTransaction(tx, callback = undefined){
         tx.uid = new Date().toISOString()
         if (typeof callback === 'function') this.callbacks[tx.uid] = callback
-        document.dispatchEvent(new CustomEvent('lamdenWalletSendTx', {detail: JSON.stringify(tx)}));
+        if (this.chromeExtension) {
+            document.dispatchEvent(new CustomEvent('lamdenWalletSendTx', {detail: JSON.stringify(tx)}));
+        } else {
+            var params = {
+                contractName: tx.contractName,
+                methodName: tx.methodName,
+                stampLimit: tx.stampLimit.toString(),
+                kwargs: JSON.stringify(tx.kwargs),
+                origin: window.location.href,
+                type: "sign",
+            }
+            var url = (
+                LAMDEN_MOBILE_WALLET_URL
+                + "?contractName=" + encodeURIComponent(params.contractName)
+                + "&methodName=" + encodeURIComponent(params.methodName)
+                + "&stampLimit=" + encodeURIComponent(params.stampLimit)
+                + "&kwargs=" + encodeURIComponent(params.kwargs)
+                + "&origin=" + encodeURIComponent(params.origin)
+                + "&type=sign"
+            );
+            this.openWalletPopup(url, params, tx.uid, (data)=>{
+                this.callbacks[tx.uid]({data: data})
+            })
+        }
     }
-  }
+    /**
+     * Logs a user into their browser-compatible wallet
+     *
+     * This will fire the "newInfo" events.on event
+     * @fires newInfo
+     * @return {Promise} The User's Lamden Wallet Account details or errors from the wallet
+     */
+    loginMobile() {
+        var url = (
+            LAMDEN_MOBILE_WALLET_URL
+            + "?origin=" + encodeURIComponent(window.location.href)
+            + "&type=login"
+        );
+        this.openWalletPopup(url, null, new Date().toISOString(), (data)=>{
+            if (data.type && data.type==="vk") {
+                this.walletAddress = data.vk;
+                this.events.emit('newInfo', data);
+                return;
+            }
+        });
+    }
+    /**
+     * If a user is using the mobile-compatible browser wallet, a popup will be opened (if not already exists)
+     * allowing them to approve connections and transactions.
+     *
+     * @param {string} url  The url of the popup to open
+     * @param {Object} message The parameters to pass to the browser wallet
+     * @param {string} uid The uid of the transaction
+     * @param {Function=} callback A function that will called and passed the tx results.
+     */
+    openWalletPopup(url, message, uid, callback) {
+        const eventHandler = (event) => {
+            if (event.origin !== LAMDEN_MOBILE_WALLET_URL)
+                return;
+            if (event.data.uid && event.data.uid !== uid) {
+                return;
+            }
+            if (message !== null && event.data.payload) {
+                if (message.contractName !== event.data.payload.contract 
+                    || message.methodName !== event.data.payload.function) {
+                    return;
+                }
+            }
+            callback(event.data);
+            window.removeEventListener("message", eventHandler);
+        };
+        window.addEventListener("message", eventHandler, false);
+        if (this.popup === null || this.popup.closed || message === null) {
+            this.popup = window.open(
+                url,
+                "LamdenWallet"
+            );
+        } else {
+            this.popup.postMessage({
+                jsonrpc: '2.0',
+                uid: uid,
+                ...message
+            }, LAMDEN_MOBILE_WALLET_URL);
+        }
+    }
+}
 
 class WalletConnectionRequest {
     /**
