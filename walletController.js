@@ -110,16 +110,22 @@ class WalletController {
         return new Promise((resolve, reject) => {
             const handleWalletInstalled = (e) => {
                 this.installed = true;
-                this.events.emit('installed', true)
+                if (this.chromeExtension) {
+                    this.events.emit('installed', true)
+                }
                 document.removeEventListener("lamdenWalletInfo", handleWalletInstalled);
                 if (this.connectionRequest !== null) this.sendConnection();
                 resolve(true);
             }
             document.addEventListener('lamdenWalletInfo', handleWalletInstalled, { once: true })
-            this.getInfo();
-            setTimeout(() => {
-                if (!this.installed) resolve(false);
-            }, 1000)
+            if (this.chromeExtension) {
+                this.getInfo();
+                setTimeout(() => {
+                    if (!this.installed) resolve(false);
+                }, 1000)
+            } else {
+                return this.loginMobile();
+            }
         })
     }
     /**
@@ -156,21 +162,17 @@ class WalletController {
     sendConnection(connectionRequest = undefined){
         if (connectionRequest) this.connectionRequest = new WalletConnectionRequest(connectionRequest)
         if (this.connectionRequest === null) throw new Error('No connetionRequest information.')
-        if (this.chromeExtension) {
-            return new Promise((resolve) => {
-                const handleConnecionResponse = (e) => {
-                    this.events.emit('newInfo', e.detail)
-                    resolve(e.detail);
-                    document.removeEventListener("lamdenWalletInfo", handleConnecionResponse);
-                }
-                document.addEventListener('lamdenWalletInfo', handleConnecionResponse, { once: true })
+        return new Promise((resolve) => {
+            const handleConnecionResponse = (e) => {
+                this.events.emit('newInfo', e.detail)
+                resolve(e.detail);
+                document.removeEventListener("lamdenWalletInfo", handleConnecionResponse);
+            }
+            document.addEventListener('lamdenWalletInfo', handleConnecionResponse, { once: true })
+            if (this.chromeExtension) {
                 document.dispatchEvent(new CustomEvent('lamdenWalletConnect', {detail: this.connectionRequest.getInfo()}));
-            })
-        } else {
-            return new Promise((resolve) => {
-                this.loginMobile()
-            })
-        }
+            }
+        })
     }
     /**
      * Creates a "lamdenWalletSendTx" event to send a transaction request to the Lamden Wallet.
@@ -228,8 +230,7 @@ class WalletController {
         );
         this.openWalletPopup(url, null, new Date().toISOString(), (data)=>{
             if (data.type && data.type==="vk") {
-                this.walletAddress = data.vk;
-                this.events.emit('newInfo', data);
+                document.dispatchEvent(new CustomEvent('lamdenWalletInfo', {detail: {wallets: [data.vk]}}));
                 return;
             }
         });
