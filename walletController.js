@@ -65,21 +65,33 @@ class WalletController {
             }
         })
         document.addEventListener('lamdenWalletTxStatus', (e) => {
-            let txResult = e.detail.data
-            if (txResult.errors){
-                if (txResult.errors.length > 0) {
-                    let uid = txResult?.txData?.uid
-                    if (txResult.status === "Transaction Cancelled"){
-                        let txData = JSON.parse(txResult.rejected)
-                        uid = txData.uid
+            const { data } = e.detail
+            if (data) {
+                let txResult = data
+
+                const { errors, status, rejected, txData, txBlockResult } = txResult
+    
+                if (errors){
+                    if (errors.length > 0) {
+                        let { uid } = txData
+    
+                        if (status === "Transaction Cancelled" && rejected){
+                            let rejectedTxData = JSON.parse(rejected)
+                            uid = rejectedTxData.uid
+                        }
+                        if (uid){
+                            if (this.callbacks[uid]) this.callbacks[uid](e.detail)
+                        }
                     }
-                    if (this.callbacks[uid]) this.callbacks[uid](e.detail)
-                }
-            }else{
-                if (Object.keys(txResult.txBlockResult).length > 0){
-                    if (this.callbacks[txResult.uid]) this.callbacks[txResult.uid](e.detail)
+                }else{
+                    if (txBlockResult && Object.keys(txBlockResult).length > 0){
+                        const { uid } = txResult
+
+                        if (uid && this.callbacks[uid]) this.callbacks[uid](e.detail)
+                    }
                 }
             }
+
             this.events.emit('txStatus', e.detail)
         })
     }
