@@ -37,6 +37,7 @@ class WalletController {
         this.autoTransactions = false;
         this.walletAddress = ""
         this.callbacks = {};
+
         document.addEventListener('lamdenWalletInfo', (e) => {
             this.installed = true;
             let data = e.detail;
@@ -46,9 +47,21 @@ class WalletController {
                     if (typeof data.locked !== 'undefined') this.locked = data.locked
 
                     if (data.wallets.length > 0) this.walletAddress = data.wallets[0]
-                    if (typeof data.approvals !== 'undefined') {
-                        this.approvals = data.approvals
-                        let approval = this.approvals[this.connectionRequest?.networkType]
+                    if (typeof data.approvals !== 'undefined' && this.connectionRequest) {
+
+                        const { networkType, networkName } = this.connectionRequest
+
+                        if (networkType && networkName){
+                            this.approvals = data.approvals
+                            let approval = null
+
+                            if (networkName === "legacy" && networkType){
+                                approval = this.approvals[networkType]
+                            }else{
+                                approval = this.approvals[networkName][networkType]
+                            }
+                        }
+
                         if (approval){
                             if (approval.contractName === this.connectionRequest.contractName){
                                 this.approved = true;
@@ -211,6 +224,7 @@ class WalletConnectionRequest {
         this.version = "";
         this.contractName = "";
         this.networkType = "";
+        this.networkName = "legacy";
         this.logo = "";
         this.background = "";
         this.charms = []
