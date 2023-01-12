@@ -37,6 +37,7 @@ class WalletController {
         this.autoTransactions = false;
         this.walletAddress = ""
         this.callbacks = {};
+
         document.addEventListener('lamdenWalletInfo', (e) => {
             this.installed = true;
             let data = e.detail;
@@ -46,9 +47,21 @@ class WalletController {
                     if (typeof data.locked !== 'undefined') this.locked = data.locked
 
                     if (data.wallets.length > 0) this.walletAddress = data.wallets[0]
-                    if (typeof data.approvals !== 'undefined') {
-                        this.approvals = data.approvals
-                        let approval = this.approvals[this.connectionRequest?.networkType]
+                    if (typeof data.approvals !== 'undefined' && this.connectionRequest) {
+
+                        const { networkType, networkName } = this.connectionRequest
+
+                        if (networkType && networkName){
+                            this.approvals = data.approvals
+                            let approval = null
+
+                            if (networkName === "legacy" && networkType){
+                                approval = this.approvals[networkType]
+                            }else{
+                                approval = this.approvals[networkName][networkType]
+                            }
+                        }
+
                         if (approval){
                             if (approval.contractName === this.connectionRequest.contractName){
                                 this.approved = true;
@@ -148,6 +161,7 @@ class WalletController {
      * @param {string} connectionRequest.version Connection version. Older version will be over-written in the uers's wallet.
      * @param {string} connectionRequest.contractName The smart contract your dApp will transact through
      * @param {string} connectionRequest.networkType Which Lamden network the approval is for (Mainnet or testnet)
+     * @param {string} connectionRequest.networkName Which Lamden Network the tx if for (legacy or arko)
      * @param {string=} connectionRequest.background A reletive path to an image to override the default lamden wallet account background
      * @param {string} connectionRequest.logo A reletive path to an image to use as a logo in the Lamden Wallet
      * @param {string=} connectionRequest.charms.name Charm name
@@ -180,6 +194,7 @@ class WalletController {
      * @param {string} tx.networkType Which Lamden network the tx is for (Mainnet or testnet)
      * @param {string} tx.stampLimit The max Stamps this tx is allowed to use. Cannot be more but can be less.
      * @param {string} tx.methodName The method on your approved smart contract to call
+     * @param {string} tx.networkName Which Lamden Network the tx if for (legacy or arko)
      * @param {Object} tx.kwargs A keyword object to supply arguments to your method
      * @param {Function=} callback A function that will called and passed the tx results.
      * @fires txStatus
@@ -211,6 +226,7 @@ class WalletConnectionRequest {
         this.version = "";
         this.contractName = "";
         this.networkType = "";
+        this.networkName = "legacy";
         this.logo = "";
         this.background = "";
         this.charms = []
@@ -230,6 +246,7 @@ class WalletConnectionRequest {
             appName: this.appName,
             version: this.version,
             contractName: this.contractName,
+            networkName: this.networkName,
             networkType: this.networkType, logo: this.logo}
         if (this.background.length > 0) info.background = this.background
         if (this.charms.length > 0) info.charms = this.charms
