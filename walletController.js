@@ -1,6 +1,6 @@
 'use strict'
 
-class WalletController {
+export default class WalletController {
     /**
      * Lamden Wallet Controller Class
      *
@@ -291,5 +291,4 @@ class MyEventEmitter {
       this._events[name].forEach(fireCallbacks);
     }
   }
-
-module.exports = WalletController;
+  
