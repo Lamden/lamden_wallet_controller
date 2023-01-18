@@ -17,6 +17,7 @@ export default class WalletController {
      * @param {string} connectionRequest.version Connection version. Older version will be over-written in the uers's wallet.
      * @param {string} connectionRequest.contractName The smart contract your DAPP will transact to
      * @param {string} connectionRequest.networkType Which Lamden network the approval is for (mainnet or testnet) are the only options
+     * @param {string} connectionRequest.networkName Which Lamden Network, Arko being the newest.
      * @param {string} connectionRequest.logo The reletive path of an image on your webserver to use as a logo for your Lamden Wallet Linked Account
      * @param {string=} connectionRequest.background The reletive path of an image on your webserver to use as a background for your Lamden Wallet Linked Account
      * @param {string=} connectionRequest.charms.name Charm name
@@ -291,4 +292,3 @@ class MyEventEmitter {
       this._events[name].forEach(fireCallbacks);
     }
   }
-  
