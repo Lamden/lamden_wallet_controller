@@ -61,12 +61,11 @@ export default class WalletController {
                             }else{
                                 approval = this.approvals[networkName][networkType]
                             }
-                        }
-
-                        if (approval){
-                            if (approval.contractName === this.connectionRequest.contractName){
-                                this.approved = true;
-                                this.autoTransactions = approval.trustedApp
+                            if (approval){
+                                if (approval.contractName === this.connectionRequest.contractName){
+                                    this.approved = true;
+                                    this.autoTransactions = approval.trustedApp
+                                }
                             }
                         }
                     }
