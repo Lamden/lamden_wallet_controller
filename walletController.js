@@ -35,9 +35,11 @@ export default class WalletController {
         this.locked = null;
         this.approvals = {};
         this.approved = false;
+        this.verified_account = false
         this.autoTransactions = false;
         this.walletAddress = ""
         this.callbacks = {};
+        this.nacl_setup = false
 
         document.addEventListener('lamdenWalletInfo', (e) => {
             this.installed = true;
@@ -203,6 +205,36 @@ export default class WalletController {
         tx.uid = new Date().toISOString()
         if (typeof callback === 'function') this.callbacks[tx.uid] = callback
         document.dispatchEvent(new CustomEvent('lamdenWalletSendTx', {detail: JSON.stringify(tx)}));
+    }
+    /**
+     * Creates a "dappVerify" event to send challenge for the wallet to sign with the user's account.
+     * If a callback is specified here then it will be called with the transaction result.
+     *
+     * This will fire the "dappVerified" events.on event
+     * @param {string} challenge A string with a max length of 64 characters.
+     * @param {string} vk A string hex representing the vk of the account you are verifying.
+     * @param {Function=} callback An optional function that will provide the result of the verification.
+     * @fires dappVerified
+     */
+    sign_challenge(challenge, vk, callback = undefined){
+        return new Promise((resolve, reject) => {
+            const handleConnecionResponse = (e) => {
+                try{
+                    this.events.emit('dappVerified', e.detail)
+                    resolve(e.detail);
+                    if (callback) callback(e.detail)
+                }catch(e){
+                    this.events.emit('dappVerified', {error: e.message})
+                    reject({error: e.message})
+                    callback({error: e.message})
+                }finally{
+                    document.removeEventListener("dappVerified", handleConnecionResponse);
+                }
+
+            }
+            document.addEventListener('dappVerified', handleConnecionResponse, { once: true })
+            document.dispatchEvent(new CustomEvent('dappVerify', {detail: JSON.stringify({challenge, vk})}));
+        })
     }
   }
 
