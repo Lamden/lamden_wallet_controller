@@ -42,7 +42,6 @@ export default class WalletController {
         this.nacl_setup = false
 
         document.addEventListener('lamdenWalletInfo', (e) => {
-            console.log(e)
             this.installed = true;
             let data = e.detail;
 
