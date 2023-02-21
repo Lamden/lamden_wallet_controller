@@ -86,7 +86,7 @@ export default class WalletController {
     
                 if (errors){
                     if (errors.length > 0) {
-                        let { uid } = txData
+                        let uid  = txData ? txData.uid : undefined
     
                         if (status === "Transaction Cancelled" && rejected){
                             let rejectedTxData = JSON.parse(rejected)
