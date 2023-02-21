@@ -42,6 +42,7 @@ export default class WalletController {
         this.nacl_setup = false
 
         document.addEventListener('lamdenWalletInfo', (e) => {
+            console.log(e)
             this.installed = true;
             let data = e.detail;
 
@@ -109,6 +110,11 @@ export default class WalletController {
 
             this.events.emit('txStatus', e.detail)
         })
+
+        if (window){
+            // Fire GetInfo when the content script is loaded
+            window.addEventListener("load", this.getInfo);
+        }
     }
     /**
      * Creates a "lamdenWalletGetInfo" CustomEvent to ask the Lamden Wallet for the current information.
@@ -211,30 +217,39 @@ export default class WalletController {
      * If a callback is specified here then it will be called with the transaction result.
      *
      * This will fire the "dappVerified" events.on event
-     * @param {string} challenge A string with a max length of 64 characters.
-     * @param {string} vk A string hex representing the vk of the account you are verifying.
+     * @param {string} dapp_challenge A string with a max length of 64 characters.
      * @param {Function=} callback An optional function that will provide the result of the verification.
      * @fires dappVerified
      */
-    sign_challenge(challenge, vk, callback = undefined){
+    auth(dapp_challenge, callback = undefined){
         return new Promise((resolve, reject) => {
             const handleConnecionResponse = (e) => {
                 try{
-                    this.events.emit('dappVerified', e.detail)
+                    this.events.emit('auth', e.detail)
                     resolve(e.detail);
                     if (callback) callback(e.detail)
                 }catch(e){
-                    this.events.emit('dappVerified', {error: e.message})
+                    this.events.emit('auth', {error: e.message})
                     reject({error: e.message})
                     callback({error: e.message})
                 }finally{
-                    document.removeEventListener("dappVerified", handleConnecionResponse);
+                    document.removeEventListener("authReturn", handleConnecionResponse);
                 }
 
             }
-            document.addEventListener('dappVerified', handleConnecionResponse, { once: true })
-            document.dispatchEvent(new CustomEvent('dappVerify', {detail: JSON.stringify({challenge, vk})}));
+            document.addEventListener('authReturn', handleConnecionResponse, { once: true })
+            document.dispatchEvent(new CustomEvent('auth', {detail: JSON.stringify({dapp_challenge})}));
         })
+    }
+    /**
+     * Returns a challenge_message from the 'dapp_challenge' and 'vault_challenge' string.
+     *
+     * This will fire the "dappVerified" events.on event
+     * @param {string} dapp_challenge A string with a max length of 64 characters.
+     * @param {string} vault_challenge A string provided in the auth() response.
+     */
+    get_challenge_message(dapp_challenge, vault_challenge){
+        return `[VAULT_AUTH]__DAPP__${dapp_challenge}__VAULT__${vault_challenge}`
     }
   }
 
