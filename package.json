@@ -1,6 +1,6 @@
 {
   "name": "lamden_wallet_controller",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "description": "An ES6 helper Class for handling the Lamden Wallet's broswer event interface.",
   "main": "walletController.js",
   "type": "module",
